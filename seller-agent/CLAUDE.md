@@ -1,4 +1,4 @@
-# Seller Agent (B 담당)
+# Seller Agent 
 
 ## 프로젝트 개요
 구매 에이전트로부터 브로드캐스트된 query/budget을 수신하고,
