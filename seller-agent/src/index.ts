@@ -6,6 +6,7 @@ import { geminiConfig } from './agents/gemini.js';
 import { createBidRouter } from './routes/bid.js';
 import type { AgentBidConfig } from './routes/bid.js';
 import { createNegotiateRouter } from './routes/negotiate.js';
+import { createExecuteRouter } from './routes/execute.js'; //execute 라우터 추가
 
 // 포트별 에이전트 설정 매핑
 const agentByPort: Record<number, AgentBidConfig> = {
@@ -15,20 +16,14 @@ const agentByPort: Record<number, AgentBidConfig> = {
   4004: geminiConfig,
 };
 
-const port = Number(process.env.PORT ?? 4001);
-const agentConfig = agentByPort[port];
-
-if (!agentConfig) {
-  console.error(`지원하지 않는 포트입니다: ${port} (허용: 4001~4004)`);
-  process.exit(1);
+for (const [portStr, config] of Object.entries(agentByPort)) {
+  const app = express();
+  app.use(express.json());
+  app.use('/bid', createBidRouter(config));
+  app.use('/negotiate', createNegotiateRouter(config));
+  app.use('/execute', createExecuteRouter(config));
+  app.listen(Number(portStr), () => {
+    console.log(`[${config.agentId}] 판매 에이전트 서버 실행 중: http://localhost:${portStr}`);
+  });
+  process.stdin.resume(); // 서버가 종료되지 않도록 유지하는 코드 .
 }
-
-const app = express();
-app.use(express.json());
-
-app.use('/bid', createBidRouter(agentConfig));
-app.use('/negotiate', createNegotiateRouter(agentConfig));
-
-app.listen(port, () => {
-  console.log(`[${agentConfig.agentId}] 판매 에이전트 서버 실행 중: http://localhost:${port}`);
-});
