@@ -11,16 +11,23 @@ interface BidRequest {
 export interface BidResponse {
   agentId: string;
   price: number;
-  deliveryTimeSec: number;
-  specialty: string[];
+  respondSpeedSec: number;
+  expertise: string[];
 }
 
 // 각 에이전트가 주입하는 설정 타입
 export interface AgentBidConfig {
   agentId: string;
   minPrice: number;
-  deliveryTimeSec: number;
-  specialty: string[];
+  respondSpeedSec: number;
+  expertise: string[];
+}
+
+// query가 에이전트 전문 분야(expertise)와 일치하면 프리미엄, 미일치면 기본값
+// negotiate.ts와 동일한 로직 — 응찰과 협상 가격 기준을 일치시키기 위해 복사 유지
+function queryPriceMultiplier(query: string, expertise: string[]): number {
+  const q = query.toLowerCase();
+  return expertise.some(s => q.includes(s.toLowerCase())) ? 1.2 : 1.0;
 }
 
 export function createBidRouter(config: AgentBidConfig): Router {
@@ -39,22 +46,25 @@ export function createBidRouter(config: AgentBidConfig): Router {
       return;
     }
 
-    // 예산이 최소 응찰 가격에 못 미치면 거절
-    if (budget < config.minPrice) {
+    // expertise 매칭 여부에 따라 실효 최소 응찰가 산정
+    const multiplier = queryPriceMultiplier(query, config.expertise);
+    const effectiveMinPrice = Math.round(config.minPrice * multiplier * 100) / 100;
+
+    if (budget < effectiveMinPrice) {
       res.status(422).json({
-        error: `예산(${budget})이 최소 응찰 가격(${config.minPrice})보다 낮습니다.`,
+        error: `예산(${budget})이 최소 응찰 가격(${effectiveMinPrice})보다 낮습니다.`,
       });
       return;
     }
 
-    // 예산의 85%로 경쟁력 있는 가격 제시 (최소 가격 이상)
-    const price = Math.max(config.minPrice, Math.round(budget * 0.85 * 100) / 100);
+    // 예산의 85%로 경쟁력 있는 가격 제시 (실효 최소가 이상)
+    const price = Math.max(effectiveMinPrice, Math.round(budget * 0.85 * 100) / 100);
 
     const response: BidResponse = {
       agentId: config.agentId,
       price,
-      deliveryTimeSec: config.deliveryTimeSec,
-      specialty: config.specialty,
+      respondSpeedSec: config.respondSpeedSec,
+      expertise: config.expertise,
     };
 
     res.status(200).json(response);

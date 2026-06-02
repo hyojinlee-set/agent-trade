@@ -25,5 +25,4 @@ for (const [portStr, config] of Object.entries(agentByPort)) {
   app.listen(Number(portStr), () => {
     console.log(`[${config.agentId}] 판매 에이전트 서버 실행 중: http://localhost:${portStr}`);
   });
-  process.stdin.resume(); // 서버가 종료되지 않도록 유지하는 코드 .
 }
